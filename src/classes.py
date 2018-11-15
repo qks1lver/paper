@@ -65,7 +65,7 @@ class Aligner:
             _ = f.write('#SBATCH -J paper\n')
             _ = f.write('#SBATCH -p %s\n' % self.slurm_part)
             _ = f.write('#SBATCH -c %d\n' % self.cpu)
-            _ = f.write('#SBATCH --mem=%d\n' % self.mem)
+            _ = f.write('#SBATCH --mem=%d\n' % self.mem*1000)
             _ = f.write('module load Java/8 Trinity/2.3.2 Bowtie/2.2.9 Python/3.6.0\n')
             _ = f.write('srun Trinity --seqType fq --max_memory %dG --left %s --right %s --CPU %d --output %s 2>&1\n' % (self.mem, fq['left'], fq['right'], self.cpu, out_dir))
 
