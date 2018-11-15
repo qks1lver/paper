@@ -100,20 +100,20 @@ class Aligner:
         return True
 
     @staticmethod
-    def parse_fastq(p_file, right_tag='_1_pf', left_tag='_2_pf'):
+    def parse_fastq(p_file, left_tag='_1_pf', right_tag='_2_pf'):
 
         f_dir, f_name = os.path.split(p_file)
 
         key = f_name.replace('.gz', '')
         key = key.replace('.fastq', '')
 
-        if right_tag in key:
-            key = key.replace(right_tag, '')
-            return f_dir, f_name, key, 'right'
-
         if left_tag in key:
             key = key.replace(left_tag, '')
             return f_dir, f_name, key, 'left'
+
+        if right_tag in key:
+            key = key.replace(right_tag, '')
+            return f_dir, f_name, key, 'right'
 
     @staticmethod
     def check_fastq(p_file=''):
