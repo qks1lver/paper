@@ -122,3 +122,18 @@ class Aligner:
             return True
         else:
             return False
+
+class Analyzer:
+
+    def __init__(self, target_dir='', out_dir=''):
+
+        self.target_dir = target_dir
+        if not self.target_dir.endswith('/'):
+            self.target_dir += '/'
+        self.out_dir = out_dir
+        if not self.out_dir.endswith('/'):
+            self.out_dir += '/'
+
+    def get_unmapped(self):
+        return
+    
