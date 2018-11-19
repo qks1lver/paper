@@ -38,7 +38,8 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', jobname='sl
         raise ValueError('Input for commands= must be either string or list of strings')
 
     if not p_out:
-        p_out = p_bash + '.slurm_out'
+        p, f = os.path.split(p_bash)
+        p_out = p + '/slurm_' + f + '.out'
 
     with open(p_bash, 'w+') as f:
         _ = f.write('#!/usr/bin/bash\n')
@@ -50,9 +51,12 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', jobname='sl
         _ = f.write('module load %s\n' % modules)
 
         if isinstance(commands, str):
-            _ = f.write('srun %s 2>&1\n' % commands)
+            if '>' not in commands:
+                _ = f.write('srun %s 2>&1\n' % commands)
+            else:
+                _ = f.write('srun %s\n' % commands)
         elif isinstance(commands, list):
-            _ = f.write('\n'.join(['srun %s 2>&1' % x for x in commands]))
+            _ = f.write('\n'.join(['srun %s 2>&1' % x if '>' not in x else 'srun %s' % x for x in commands]))
 
     if verbose:
         print('Created Slurm bash: %s' % p_bash)
@@ -236,8 +240,7 @@ class Analyzer:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='samtools view -u -f 12 -F 256 %s' % p_in,
-            p_out=p_out,
+            commands='samtools view -u -f 12 %s > %s' % (p_in, p_out),
             modules='Python/3.6.0 SAMtools/1.9',
             jobname='paper-sam',
             partition=self.slurm_part,
