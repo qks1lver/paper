@@ -1,9 +1,31 @@
 #!/usr/bin/env python3
 
+# Imports
 import subprocess
 import os
 import pdb
+from time import sleep
 
+# Functions
+def submit_slurm(command, i_try=1, max_tries=10):
+
+    success = False
+    try:
+        print('Submitting: %s ...' % command)
+        _ = subprocess.run(command.split())
+        print('\tSubmitted successfully!')
+        success = True
+    except:
+        print('\tFailed to submit (%d / %d): %s' % (i_try, max_tries, command))
+        if i_try < max_tries:
+            sleep(1)
+            success = submit_slurm(command, i_try=i_try+1, max_tries=max_tries)
+        else:
+            print('\tSubmission failed')
+
+    return success
+
+# Classes
 class Aligner:
 
     def __init__(self, target_dir='', out_dir='', reference='', mem=None, cpu=None, slurm_part='DPB'):
@@ -26,6 +48,7 @@ class Aligner:
         else:
             self.cpu = int(cpu)
         self.slurm_part = slurm_part
+        self.max_tries = 10
 
         self.key2fastqs = {}
 
@@ -46,10 +69,11 @@ class Aligner:
             if 'left' in fq and 'right' in fq:
                 # Paired reads
                 p_bash = self.make_trinity_bash(key, fq)
-                print('Submitting Trinity job - paired-ends: %s ...' % key)
+                print('Paired-ends: %s ...' % key)
                 command = 'sbatch %s' % p_bash
-                _ = subprocess.run(command.split())
-                print('\tSubmitted %s' % key)
+                success = submit_slurm(command, max_tries=self.max_tries)
+                if success:
+                    print('\tSubmitted %s' % key)
 
         return True
 
@@ -134,6 +158,34 @@ class Analyzer:
         if not self.out_dir.endswith('/'):
             self.out_dir += '/'
 
+        self.max_tries = 10
+
     def get_unmapped(self):
+
+        p_files = os.listdir(self.target_dir)
+        for p_file in p_files:
+            p_file = self.target_dir + p_file
+            command = 'samtools -f4 %s' % p_file
+            submit_slurm(command, self.max_tries)
+
         return
+
+    def make_sam_bash(self, key, fq):
+
+        out_dir = self.out_dir + 'trinity_%s/' % key
+        if not os.path.isdir(out_dir):
+            os.makedirs(out_dir)
+
+        p = self.out_dir + 'bash_%s.sh' % key
+        with open(p, 'w+') as f:
+            _ = f.write('#!/usr/bin/bash\n')
+            _ = f.write('#SBATCH -J paper\n')
+            _ = f.write('#SBATCH -p %s\n' % self.slurm_part)
+            _ = f.write('#SBATCH -c %d\n' % self.cpu)
+            _ = f.write('#SBATCH --mem=%d\n' % (self.mem*1000))
+            _ = f.write('module load Python/3.6.0 SAMtools/1.3.1\n')
+            _ = f.write('srun Trinity --seqType fq --max_memory %dG --left %s --right %s --CPU %d --output %s 2>&1\n' % (self.mem, fq['left'], fq['right'], self.cpu, out_dir))
+
+        print('Created bash: %s' % p)
+        return p
     
