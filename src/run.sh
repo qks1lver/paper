@@ -5,4 +5,6 @@
 #SBATCH -c 1
 #SBATCH --mem=2000
 
-srun python3 paper.py -a -i $1 -o $2 -c $3 -m $4
+module load Python/3.6.0
+
+srun python3 paper.py "$@" 2>&1
