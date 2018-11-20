@@ -205,7 +205,7 @@ class Aligner:
 
     def make_bwa_bash(self, key, fq, p_ref):
 
-        p_out = self.out_dir + 'bwa_%s.sam' % key
+        p_out = self.out_dir + 'bwa_%s.bam' % key
 
         bash_dir = self.out_dir + 'bash/'
         if not os.path.isdir(bash_dir):
@@ -214,8 +214,9 @@ class Aligner:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='bwa mem -M -t %d %s %s %s > %s' % (self.cpu, p_ref, fq['left'], fq['right'], p_out),
-            modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15',
+            commands='bwa mem -M -t %d %s %s %s | samtools sort -@%d -o %s -'
+                     % (self.cpu, p_ref, fq['left'], fq['right'], self.cpu, p_out),
+            modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15 SAMtools/1.9',
             jobname='paper-bwa',
             partition=self.slurm_part,
             cpu=self.cpu,
