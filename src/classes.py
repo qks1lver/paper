@@ -346,7 +346,7 @@ class Analyzer:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='samtools view%s -f4 %s > %s' % (opt_sam, p_in, p_out),
+            commands='samtools view%s -f12 %s > %s' % (opt_sam, p_in, p_out),
             modules='Python/3.6.0 SAMtools/1.9',
             jobname='paper-sam',
             partition=self.slurm_part,
