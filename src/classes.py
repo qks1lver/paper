@@ -185,8 +185,7 @@ class Aligner:
         copyfile(self.reference, p_ref)
 
         # Load modules
-        command = 'module load Zlib/1.2.8 bwa/0.7.15'
-        subprocess.run(command.split())
+        os.system('module load Zlib/1.2.8 bwa/0.7.15')
 
         # Run BWA index
         command = 'bwa index ' + p_ref
