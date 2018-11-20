@@ -1,5 +1,5 @@
 # PAPER
-**Python Align Pair-End Reads**
+**Python Aligns Paired-End Reads**
 
 Python 3.5+
 
