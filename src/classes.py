@@ -368,7 +368,7 @@ class Analyzer:
 
         return p_bashs
 
-    def split_unmapped_bam(self):
+    def unpair_bam(self):
 
         p_files = os.listdir(self.target_dir)
         if not p_files:

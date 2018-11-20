@@ -18,16 +18,24 @@ if __name__ == '__main__':
     parser.add_argument('-m', dest='mem', default=None, help='Amount of memory in G')
     parser.add_argument('--part', dest='part', default='DPB', help='SLURM partition')
     parser.add_argument('--unmap', dest='unmap', action='store_true', help='Extract unmapped reads')
+    parser.add_argument('--unpair', dest='unpair', action='store_true', help='Unpair BAMs')
 
     args = parser.parse_args()
 
     if args.align:
-        aligner = Aligner(target_dir=args.data_dir, out_dir=args.out_dir, reference=args.ref, mem=args.mem, cpu=args.cpu, slurm_part=args.part)
+        aligner = Aligner(target_dir=args.data_dir, out_dir=args.out_dir, reference=args.ref, mem=args.mem,
+                          cpu=args.cpu, slurm_part=args.part)
         if args.align == 'trinity':
             aligner.trinity()
         elif args.align == 'bwa':
             aligner.bwa()
 
     elif args.unmap:
-        analyzer = Analyzer(target_dir=args.data_dir, out_dir=args.out_dir, mem=args.mem, cpu=args.cpu, slurm_part=args.part)
+        analyzer = Analyzer(target_dir=args.data_dir, out_dir=args.out_dir, mem=args.mem, cpu=args.cpu,
+                            slurm_part=args.part)
         analyzer.get_unmapped()
+
+    elif args.unpair:
+        analyzer = Analyzer(target_dir=args.data_dir, out_dir=args.out_dir, mem=args.mem, cpu=args.cpu,
+                            slurm_part=args.part)
+        analyzer.unpair_bam()
