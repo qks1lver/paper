@@ -28,7 +28,7 @@ def submit_slurm_bash(p_bash, i_try=1, max_tries=10):
 
     return success
 
-def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', jobname='slurm_job', partition='DPB', cpu=1, mem=1000, verbose=True):
+def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', jobname='slurm_job', partition='DPB', cpu=1, mem=1000, use_srun=True, verbose=True):
 
     if not p_bash:
         raise ValueError('Missing destination path (p_bash=)')
@@ -40,11 +40,22 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', j
 
     if not p_out:
         p, f = os.path.split(p_bash)
+        p += '/slurm_out/'
+        if not os.path.isdir(p):
+            os.makedirs(p)
         p_out = p + '/slurm_' + f + '.out'
 
     if not p_err:
         p, f = os.path.split(p_bash)
+        p += '/slurm_err/'
+        if not os.path.isdir(p):
+            os.makedirs(p)
         p_err = p + '/slurm_' + f + '.err'
+
+    if use_srun:
+        srun = 'srun '
+    else:
+        srun = ''
 
     with open(p_bash, 'w+') as f:
         _ = f.write('#!/usr/bin/bash\n')
@@ -57,12 +68,9 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', j
         _ = f.write('module load %s\n' % modules)
 
         if isinstance(commands, str):
-            if '>' not in commands:
-                _ = f.write('srun %s 2>&1\n' % commands)
-            else:
-                _ = f.write('srun %s\n' % commands)
+            _ = f.write('%s%s\n' % (srun, commands))
         elif isinstance(commands, list):
-            _ = f.write('\n'.join(['srun %s 2>&1' % x if '>' not in x else 'srun %s' % x for x in commands]))
+            _ = f.write('\n'.join(['%s%s' % (srun, x) for x in commands]))
 
     if verbose:
         print('Created Slurm bash: %s' % p_bash)
@@ -200,13 +208,13 @@ class Aligner:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='bwa mem -M -t %d %s %s %s' % (self.cpu, p_ref, fq['left'], fq['right']),
-            p_out=p_out,
+            commands='bwa mem -M -t %d %s %s %s > %s' % (self.cpu, p_ref, fq['left'], fq['right'], p_out),
             modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15',
             jobname='paper-bwa',
             partition=self.slurm_part,
             cpu=self.cpu,
-            mem=self.mem * 1000
+            mem=self.mem * 1000,
+            use_srun=False
         )
 
         return p_bash
@@ -327,7 +335,7 @@ class Analyzer:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='samtools view%s -f 4 %s' % (opt_sam, p_in),
+            commands='samtools view%s -f4 %s' % (opt_sam, p_in),
             p_out=p_out,
             modules='Python/3.6.0 SAMtools/1.9',
             jobname='paper-sam',
