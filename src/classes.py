@@ -140,6 +140,53 @@ class Aligner:
 
         return p_bash
 
+    def bwa(self):
+
+        if not self.out_dir:
+            print('Need .out_dir - where the results will go')
+            return False
+
+        if not self.reference or not os.path.isfile(self.reference):
+            print('Invalid reference genome: %s' % self.reference)
+            return False
+
+        if not self.gen_key2fastqs():
+            return False
+
+        if not os.path.isdir(self.out_dir):
+            os.makedirs(self.out_dir)
+            print('Created folder: %s' % self.out_dir)
+
+        for key, fq in self.key2fastqs.items():
+            if 'left' in fq and 'right' in fq:
+                # Paired reads
+                p_bash = self.make_bwa_bash(key, fq)
+                print('Paired-ends: %s ...' % key)
+                success = submit_slurm_bash(p_bash, max_tries=self.max_tries)
+                if success:
+                    print('\tSubmitted %s' % key)
+
+        return True
+
+    def make_bwa_bash(self, key, fq):
+
+        p_out = self.out_dir + 'bwa_%s.sam' % key
+
+        p_bash = self.out_dir + 'bash_%s.sh' % key
+
+        _ = write_slurm_bash(
+            p_bash=p_bash,
+            commands='bwa mem -M -t %d %s %s %s' % (self.cpu, self.reference, fq['left'], fq['right']),
+            p_out=p_out,
+            modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15',
+            jobname='paper-bwa',
+            partition=self.slurm_part,
+            cpu=self.cpu,
+            mem=self.mem * 1000
+        )
+
+        return p_bash
+
     def gen_key2fastqs(self):
 
         if not self.target_dir:
