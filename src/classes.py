@@ -345,12 +345,12 @@ class Analyzer:
             # First of pair
             p_bashs.append(bash_dir + 'bash_%s_1.sh' % file_name)
             p_out = self.out_dir + file_name + '_1_pf.fastq.gz'
-            commands.append('samtools view -@%d -c 9 -O BAM -f64 %s -o %s' % (self.cpu, p_in, p_out))
+            commands.append('samtools fastq -@%d -c 9 -O BAM -f64 %s -o %s' % (self.cpu, p_in, p_out))
 
             # Second of pair
             p_bashs.append(bash_dir + 'bash_%s_2.sh' % file_name)
             p_out = self.out_dir + file_name + '_2_pf.fastq.gz'
-            commands.append('samtools view -@%d -c 9 -O BAM -f128 %s -o %s' % (self.cpu, p_in, p_out))
+            commands.append('samtools fastq -@%d -c 9 -O BAM -f128 %s -o %s' % (self.cpu, p_in, p_out))
         else:
             raise ValueError('Missing proper option - opt={"unmap", "unpair"}')
 
