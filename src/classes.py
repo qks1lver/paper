@@ -144,7 +144,7 @@ class Aligner:
             commands='Trinity --seqType fq --max_memory %dG --left %s --right %s --CPU %d --output %s'
                      % (self.mem, fq['left'], fq['right'], self.cpu, out_dir),
             modules='Java/8 Trinity/2.3.2 Bowtie/2.2.9 Python/3.6.0',
-            jobname='paper-trinity',
+            jobname='paper-align-trinity',
             partition=self.slurm_part,
             cpu=self.cpu,
             mem=self.mem*1000
@@ -217,7 +217,7 @@ class Aligner:
             commands='bwa mem -M -t %d %s %s %s | samtools sort -@%d -o %s -'
                      % (self.cpu, p_ref, fq['left'], fq['right'], self.cpu, p_out),
             modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15 SAMtools/1.9',
-            jobname='paper-bwa',
+            jobname='paper-align-bwa',
             partition=self.slurm_part,
             cpu=self.cpu,
             mem=self.mem * 1000,
@@ -313,22 +313,19 @@ class Analyzer:
 
         for p_file in p_files:
             if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(self.target_dir + p_file):
-                p_bash = self.make_sam_bash(p_bam=p_file)
-                submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
+                p_bashs = self.make_sam_bash(p_bam=p_file, opt='unmap')
+                submit_slurm_bash(p_bash=p_bashs[0], max_tries=self.max_tries)
 
         return True
 
-    def make_sam_bash(self, p_bam=''):
+    def make_sam_bash(self, p_bam='', opt='unmap'):
 
         if not p_bam:
             raise ValueError('Missing BAM/SAM file path (p_bam=)')
 
-        opt_sam = ''
-        if not p_bam.endswith('.bam'):
-            if p_bam.endswith('.sam'):
-                opt_sam = ' -S'
-            else:
-                raise ValueError('p_bam must be either .bam or .sam')
+        file_name = p_bam[:-4]
+        if not p_bam.endswith('.bam') and not p_bam.endswith('.sam'):
+            raise ValueError('p_bam must be either .bam or .sam')
 
         p_in = self.target_dir + p_bam
         if not os.path.isfile(p_in):
@@ -337,23 +334,55 @@ class Analyzer:
         bash_dir = self.out_dir + 'bash/'
         if not os.path.isdir(bash_dir):
             os.makedirs(bash_dir)
-        if not opt_sam:
-            p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.sam')
-            p_bash = bash_dir + 'bash_' + p_bam.replace('.bam', '.sh')
+
+        p_bashs = []
+        commands = []
+        if opt == 'unmap':
+            p_bashs.append(bash_dir + 'bash_%s.sh' % file_name)
+            p_out = self.out_dir + file_name + '_unmapped.bam'
+            commands.append('samtools view -@%d -O BAM -f12 %s -o %s' % (self.cpu, p_in, p_out))
+        elif opt == 'unpair':
+            # First of pair
+            p_bashs.append(bash_dir + 'bash_%s_1.sh' % file_name)
+            p_out = self.out_dir + file_name + '_1_pf.fastq.gz'
+            commands.append('samtools view -@%d -c 9 -O BAM -f64 %s -o %s' % (self.cpu, p_in, p_out))
+
+            # Second of pair
+            p_bashs.append(bash_dir + 'bash_%s_2.sh' % file_name)
+            p_out = self.out_dir + file_name + '_2_pf.fastq.gz'
+            commands.append('samtools view -@%d -c 9 -O BAM -f128 %s -o %s' % (self.cpu, p_in, p_out))
         else:
-            p_out = self.out_dir + p_bam.replace('.sam', '_unmapped.sam')
-            p_bash = bash_dir + 'bash_' + p_bam.replace('.sam', '.sh')
+            raise ValueError('Missing proper option - opt={"unmap", "unpair"}')
 
-        _ = write_slurm_bash(
-            p_bash=p_bash,
-            commands='samtools view%s -@%d -f12 %s > %s' % (opt_sam, self.cpu, p_in, p_out),
-            modules='Python/3.6.0 SAMtools/1.9',
-            jobname='paper-sam',
-            partition=self.slurm_part,
-            cpu=self.cpu,
-            mem=self.mem * 1000,
-            use_srun=False
-        )
+        for p_bash, command in zip(p_bashs, commands):
+            _ = write_slurm_bash(
+                p_bash=p_bash,
+                commands=command,
+                modules='Python/3.6.0 SAMtools/1.9',
+                jobname='paper-analyze-%s' % opt,
+                partition=self.slurm_part,
+                cpu=self.cpu,
+                mem=self.mem * 1000,
+                use_srun=False
+            )
 
-        return p_bash
+        return p_bashs
+
+    def split_unmapped_bam(self):
+
+        p_files = os.listdir(self.target_dir)
+        if not p_files:
+            print('Source directory is empty: %s' % self.target_dir)
+            return False
+
+        if not os.path.isdir(self.out_dir):
+            os.makedirs(self.out_dir)
+
+        for p_file in p_files:
+            if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(self.target_dir + p_file):
+                p_bashs = self.make_sam_bash(p_bam=p_file, opt='unpair')
+                submit_slurm_bash(p_bash=p_bashs[0], max_tries=self.max_tries)
+                submit_slurm_bash(p_bash=p_bashs[1], max_tries=self.max_tries)
+
+        return True
     
