@@ -2,8 +2,8 @@
 
 #SBATCH -J paper
 #SBATCH -p DPB
-#SBATCH -c 1
-#SBATCH --mem=2000
+#SBATCH -c 2
+#SBATCH --mem=4000
 
 module load Python/3.6.0
 

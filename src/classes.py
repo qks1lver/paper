@@ -3,6 +3,7 @@
 # Imports
 import subprocess
 import os
+from shutil import copyfile
 import pdb
 
 # Functions
@@ -157,10 +158,12 @@ class Aligner:
             os.makedirs(self.out_dir)
             print('Created folder: %s' % self.out_dir)
 
+        p_ref = self.bwa_index()
+
         for key, fq in self.key2fastqs.items():
             if 'left' in fq and 'right' in fq:
                 # Paired reads
-                p_bash = self.make_bwa_bash(key, fq)
+                p_bash = self.make_bwa_bash(key, fq, p_ref)
                 print('Paired-ends: %s ...' % key)
                 success = submit_slurm_bash(p_bash, max_tries=self.max_tries)
                 if success:
@@ -168,7 +171,32 @@ class Aligner:
 
         return True
 
-    def make_bwa_bash(self, key, fq):
+    def bwa_index(self):
+
+        print('BWA indexing reference genome ...')
+
+        # Create a directory for reference genome index files
+        ref_dir = self.out_dir + 'reference_genome/'
+        if not os.path.isdir(ref_dir):
+            os.makedirs(ref_dir)
+
+        # Copy the reference genome fasta file to the index file directory
+        p_ref = ref_dir + 'reference.fa'
+        copyfile(self.reference, p_ref)
+
+        # Load modules
+        command = 'module load Zlib/1.2.8 bwa/0.7.15'
+        subprocess.run(command.split())
+
+        # Run BWA index
+        command = 'bwa index ' + p_ref
+        subprocess.run(command.split())
+
+        print('\tReference genome index files: %s' % ref_dir)
+
+        return p_ref
+
+    def make_bwa_bash(self, key, fq, p_ref):
 
         p_out = self.out_dir + 'bwa_%s.sam' % key
 
@@ -176,7 +204,7 @@ class Aligner:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='bwa mem -M -t %d %s %s %s' % (self.cpu, self.reference, fq['left'], fq['right']),
+            commands='bwa mem -M -t %d %s %s %s' % (self.cpu, p_ref, fq['left'], fq['right']),
             p_out=p_out,
             modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15',
             jobname='paper-bwa',
