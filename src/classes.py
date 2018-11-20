@@ -304,19 +304,30 @@ class Analyzer:
 
     def make_sam_bash(self, p_bam=''):
 
-        if not p_bam or not p_bam.endswith('.bam'):
-            raise ValueError('Missing BAM file path (p_bam=)')
+        if not p_bam:
+            raise ValueError('Missing BAM/SAM file path (p_bam=)')
+
+        opt_sam = ''
+        if not p_bam.endswith('.bam'):
+            if p_bam.endswith('.sam'):
+                opt_sam = ' -S'
+            else:
+                raise ValueError('p_bam must be either .bam or .sam')
 
         p_in = self.target_dir + p_bam
         if not os.path.isfile(p_in):
             raise ValueError('File does not exist: %s' % p_in)
 
-        p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.sam')
-        p_bash = self.out_dir + 'bash_' + p_bam.replace('.bam', '.sh')
+        if not opt_sam:
+            p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.sam')
+            p_bash = self.out_dir + 'bash_' + p_bam.replace('.bam', '.sh')
+        else:
+            p_out = self.out_dir + p_bam.replace('.sam', '_unmapped.sam')
+            p_bash = self.out_dir + 'bash_' + p_bam.replace('.sam', '.sh')
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='samtools view -f 4 %s' % p_in,
+            commands='samtools view%s -f 4 %s' % (opt_sam, p_in),
             p_out=p_out,
             modules='Python/3.6.0 SAMtools/1.9',
             jobname='paper-sam',

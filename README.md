@@ -24,6 +24,8 @@ Essentially follow these steps:
 
     ```sbatch run.sh -a trinity -i pair_end_fastq_files_dir/ -o output_files_dir/ -c 12 -m 50```
     
+    ```-i``` files in this directory can be .fastq or .fastq.gz
+    
     ```-c``` number of CPUs to allow Trinity to use
     
     ```-m``` amount of RAM in G to allow Trinity to use
@@ -33,6 +35,8 @@ Essentially follow these steps:
 2. Run something like this:
 
     ```sbatch run.sh -a bwa -r reference_genome.fa -i pair_end_fastq_files_dir/ -o output_files_dir/ -c 12 -m 20```
+    
+    ```-i``` files in this directory can be .fastq or .fastq.gz
     
     ```-c``` number of CPUs to allow BWA to use
     
@@ -44,6 +48,8 @@ Essentially follow these steps:
 
     ```sbatch run.sh --unmap -i mapped_read_files_dir/ -o output_files_dir/ -c 4 -m 8```
 
+    ```-i``` files in this directory can be BAM or SAM
+    
     ```-c``` number of CPUs to allow SAMtools to use (default is the number of CPUs found.
     On Memex, this would go to 24, which is too much and can potentially make your job wait)
     
