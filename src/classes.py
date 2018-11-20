@@ -134,7 +134,10 @@ class Aligner:
         if not os.path.isdir(out_dir):
             os.makedirs(out_dir)
 
-        p_bash = self.out_dir + 'bash_%s.sh' % key
+        bash_dir = self.out_dir + 'bash/'
+        if not os.path.isdir(bash_dir):
+            os.makedirs(bash_dir)
+        p_bash = bash_dir + 'bash_%s.sh' % key
 
         _ = write_slurm_bash(
             p_bash=p_bash,
@@ -204,7 +207,10 @@ class Aligner:
 
         p_out = self.out_dir + 'bwa_%s.sam' % key
 
-        p_bash = self.out_dir + 'bash_%s.sh' % key
+        bash_dir = self.out_dir + 'bash/'
+        if not os.path.isdir(bash_dir):
+            os.makedirs(bash_dir)
+        p_bash = bash_dir + 'bash_%s.sh' % key
 
         _ = write_slurm_bash(
             p_bash=p_bash,
@@ -305,8 +311,9 @@ class Analyzer:
             os.makedirs(self.out_dir)
 
         for p_file in p_files:
-            p_bash = self.make_sam_bash(p_bam=p_file)
-            submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
+            if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(p_file):
+                p_bash = self.make_sam_bash(p_bam=p_file)
+                submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
 
         return True
 
@@ -326,12 +333,15 @@ class Analyzer:
         if not os.path.isfile(p_in):
             raise ValueError('File does not exist: %s' % p_in)
 
+        bash_dir = self.out_dir + 'bash/'
+        if not os.path.isdir(bash_dir):
+            os.makedirs(bash_dir)
         if not opt_sam:
             p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.sam')
-            p_bash = self.out_dir + 'bash_' + p_bam.replace('.bam', '.sh')
+            p_bash = bash_dir + 'bash_' + p_bam.replace('.bam', '.sh')
         else:
             p_out = self.out_dir + p_bam.replace('.sam', '_unmapped.sam')
-            p_bash = self.out_dir + 'bash_' + p_bam.replace('.sam', '.sh')
+            p_bash = bash_dir + 'bash_' + p_bam.replace('.sam', '.sh')
 
         _ = write_slurm_bash(
             p_bash=p_bash,
