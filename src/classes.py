@@ -27,7 +27,7 @@ def submit_slurm_bash(p_bash, i_try=1, max_tries=10):
 
     return success
 
-def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', jobname='slurm_job', partition='DPB', cpu=1, mem=1000, verbose=True):
+def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', jobname='slurm_job', partition='DPB', cpu=1, mem=1000, verbose=True):
 
     if not p_bash:
         raise ValueError('Missing destination path (p_bash=)')
@@ -41,6 +41,10 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', jobname='sl
         p, f = os.path.split(p_bash)
         p_out = p + '/slurm_' + f + '.out'
 
+    if not p_err:
+        p, f = os.path.split(p_bash)
+        p_err = p + '/slurm_' + f + '.err'
+
     with open(p_bash, 'w+') as f:
         _ = f.write('#!/usr/bin/bash\n')
         _ = f.write('#SBATCH -J %s\n' % jobname)
@@ -48,6 +52,7 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', jobname='sl
         _ = f.write('#SBATCH -c %d\n' % cpu)
         _ = f.write('#SBATCH --mem=%d\n' % mem)
         _ = f.write('#SBATCH -o "%s"\n' % p_out)
+        _ = f.write('#SBATCH -e "%s"\n' % p_err)
         _ = f.write('module load %s\n' % modules)
 
         if isinstance(commands, str):
@@ -235,12 +240,13 @@ class Analyzer:
         if not os.path.isfile(p_in):
             raise ValueError('File does not exist: %s' % p_in)
 
-        p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.bam')
+        p_out = self.out_dir + p_bam.replace('.bam', '_unmapped.sam')
         p_bash = self.out_dir + 'bash_' + p_bam.replace('.bam', '.sh')
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='samtools view -u -f 12 %s > %s' % (p_in, p_out),
+            commands='samtools view -f 12 %s' % p_in,
+            p_out=p_out,
             modules='Python/3.6.0 SAMtools/1.9',
             jobname='paper-sam',
             partition=self.slurm_part,
