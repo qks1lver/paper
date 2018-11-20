@@ -311,7 +311,7 @@ class Analyzer:
             os.makedirs(self.out_dir)
 
         for p_file in p_files:
-            if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(p_file):
+            if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(self.target_dir + p_file):
                 p_bash = self.make_sam_bash(p_bam=p_file)
                 submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
 
