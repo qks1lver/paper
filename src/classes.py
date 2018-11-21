@@ -80,14 +80,24 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', j
 # Classes
 class Aligner:
 
-    def __init__(self, target_dir='', out_dir='', reference='', mem=None, cpu=None, slurm_part='DPB'):
+    def __init__(self, target_dir=None, out_dir=None, reference=None, mem=None, cpu=None, slurm_part='DPB'):
 
-        self.target_dir = target_dir
-        if not self.target_dir.endswith('/'):
-            self.target_dir += '/'
-        self.out_dir = out_dir
-        if not self.out_dir.endswith('/'):
-            self.out_dir += '/'
+        # Source directory
+        if target_dir is None or not os.path.isdir(target_dir):
+            raise ValueError('Must provide source directory (target_dir=)')
+        else:
+            self.target_dir = os.path.realpath(target_dir)
+            if not self.target_dir.endswith('/'):
+                self.target_dir += '/'
+
+        # Output directory
+        if out_dir is None:
+            raise ValueError('Must provide output directory (out_dir=)')
+        else:
+            self.out_dir = os.path.realpath(out_dir)
+            if not self.out_dir.endswith('/'):
+                self.out_dir += '/'
+
         self.reference = reference
         if mem is None:
             self.mem = 4
@@ -141,7 +151,7 @@ class Aligner:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='Trinity --seqType fq --max_memory %dG --left %s --right %s --CPU %d --output %s'
+            commands='Trinity --seqType fq --max_memory %dG --left "%s" --right "%s" --CPU %d --output "%s"'
                      % (self.mem, fq['left'], fq['right'], self.cpu, out_dir),
             modules='Java/8 Trinity/2.3.2 Bowtie/2.2.9 Python/3.6.0',
             jobname='paper-align-trinity',
@@ -214,7 +224,7 @@ class Aligner:
 
         _ = write_slurm_bash(
             p_bash=p_bash,
-            commands='bwa mem -M -t %d %s %s %s | samtools sort -@%d -o %s -'
+            commands='bwa mem -M -t %d "%s" "%s" "%s" | samtools sort -@%d -o "%s" -'
                      % (self.cpu, p_ref, fq['left'], fq['right'], self.cpu, p_out),
             modules='Python/3.6.0 Zlib/1.2.8 bwa/0.7.15 SAMtools/1.9',
             jobname='paper-align-bwa',
@@ -279,14 +289,24 @@ class Aligner:
 
 class Analyzer:
 
-    def __init__(self, target_dir='', out_dir='', cpu=None, mem=None, slurm_part='DPB'):
+    def __init__(self, target_dir=None, out_dir=None, cpu=None, mem=None, slurm_part='DPB'):
 
-        self.target_dir = target_dir
-        if not self.target_dir.endswith('/'):
-            self.target_dir += '/'
-        self.out_dir = out_dir
-        if not self.out_dir.endswith('/'):
-            self.out_dir += '/'
+        # Source directory
+        if target_dir is None or not os.path.isdir(target_dir):
+            raise ValueError('Must provide source directory (target_dir=)')
+        else:
+            self.target_dir = os.path.realpath(target_dir)
+            if not self.target_dir.endswith('/'):
+                self.target_dir += '/'
+
+        # Output directory
+        if out_dir is None:
+            raise ValueError('Must provide output directory (out_dir=)')
+        else:
+            self.out_dir = os.path.realpath(out_dir)
+            if not self.out_dir.endswith('/'):
+                self.out_dir += '/'
+
         if cpu is None:
             self.cpu = os.cpu_count()
             print('Default with cpu=%d (number of CPUs found)' % self.cpu)
@@ -313,8 +333,8 @@ class Analyzer:
 
         for p_file in p_files:
             if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(self.target_dir + p_file):
-                p_bashs = self.make_sam_bash(p_bam=p_file, opt='unmap')
-                submit_slurm_bash(p_bash=p_bashs[0], max_tries=self.max_tries)
+                p_bash = self.make_sam_bash(p_bam=p_file, opt='unmap')
+                submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
 
         return True
 
@@ -335,38 +355,31 @@ class Analyzer:
         if not os.path.isdir(bash_dir):
             os.makedirs(bash_dir)
 
-        p_bashs = []
-        commands = []
         if opt == 'unmap':
-            p_bashs.append(bash_dir + 'bash_%s.sh' % file_name)
+            p_bash = bash_dir + 'bash_%s.sh' % file_name
             p_out = self.out_dir + file_name + '_unmapped.bam'
-            commands.append('samtools view -@%d -O BAM -f12 %s -o %s' % (self.cpu, p_in, p_out))
+            command = 'samtools view -@%d -O BAM -f12 "%s" -o "%s"' % (self.cpu, p_in, p_out)
         elif opt == 'unpair':
             # First of pair
-            p_bashs.append(bash_dir + 'bash_%s_1.sh' % file_name)
-            p_out = self.out_dir + file_name + '_1_pf.fastq.gz'
-            commands.append('samtools fastq -@%d -c 9 -O BAM -f64 %s -o %s' % (self.cpu, p_in, p_out))
-
-            # Second of pair
-            p_bashs.append(bash_dir + 'bash_%s_2.sh' % file_name)
-            p_out = self.out_dir + file_name + '_2_pf.fastq.gz'
-            commands.append('samtools fastq -@%d -c 9 -O BAM -f128 %s -o %s' % (self.cpu, p_in, p_out))
+            p_bash = bash_dir + 'bash_%s_1.sh' % file_name
+            p_out1 = self.out_dir + file_name + '_1_pf.fastq.gz'
+            p_out2 = self.out_dir + file_name + '_1_pf.fastq.gz'
+            command = 'samtools bam2fq -@%d -c 9 -1 "%s" -2 "%s" "%s"' % (self.cpu, p_out1, p_out2, p_in)
         else:
             raise ValueError('Missing proper option - opt={"unmap", "unpair"}')
 
-        for p_bash, command in zip(p_bashs, commands):
-            _ = write_slurm_bash(
-                p_bash=p_bash,
-                commands=command,
-                modules='Python/3.6.0 SAMtools/1.9',
-                jobname='paper-analyze-%s' % opt,
-                partition=self.slurm_part,
-                cpu=self.cpu,
-                mem=self.mem * 1000,
-                use_srun=False
-            )
+        _ = write_slurm_bash(
+            p_bash=p_bash,
+            commands=command,
+            modules='Python/3.6.0 SAMtools/1.9',
+            jobname='paper-analyze-%s' % opt,
+            partition=self.slurm_part,
+            cpu=self.cpu,
+            mem=self.mem * 1000,
+            use_srun=False
+        )
 
-        return p_bashs
+        return p_bash
 
     def unpair_bam(self):
 
@@ -380,9 +393,8 @@ class Analyzer:
 
         for p_file in p_files:
             if (p_file.endswith('.bam') or p_file.endswith('.sam')) and os.path.isfile(self.target_dir + p_file):
-                p_bashs = self.make_sam_bash(p_bam=p_file, opt='unpair')
-                submit_slurm_bash(p_bash=p_bashs[0], max_tries=self.max_tries)
-                submit_slurm_bash(p_bash=p_bashs[1], max_tries=self.max_tries)
+                p_bash = self.make_sam_bash(p_bam=p_file, opt='unpair')
+                submit_slurm_bash(p_bash=p_bash, max_tries=self.max_tries)
 
         return True
     
