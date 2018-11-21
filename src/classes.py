@@ -363,7 +363,7 @@ class Analyzer:
             # First of pair
             p_bash = bash_dir + 'bash_%s_1.sh' % file_name
             p_out1 = self.out_dir + file_name + '_1_pf.fastq.gz'
-            p_out2 = self.out_dir + file_name + '_1_pf.fastq.gz'
+            p_out2 = self.out_dir + file_name + '_2_pf.fastq.gz'
             command = 'samtools bam2fq -@%d -c 9 -1 "%s" -2 "%s" "%s"' % (self.cpu, p_out1, p_out2, p_in)
         else:
             raise ValueError('Missing proper option - opt={"unmap", "unpair"}')
