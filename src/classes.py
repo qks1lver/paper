@@ -43,14 +43,14 @@ def write_slurm_bash(p_bash='', commands=None, modules='', p_out='', p_err='', j
         p += '/slurm_out/'
         if not os.path.isdir(p):
             os.makedirs(p)
-        p_out = p + '/slurm_' + f + '.out'
+        p_out = p + 'slurm_' + f + '.out'
 
     if not p_err:
         p, f = os.path.split(p_bash)
         p += '/slurm_err/'
         if not os.path.isdir(p):
             os.makedirs(p)
-        p_err = p + '/slurm_' + f + '.err'
+        p_err = p + 'slurm_' + f + '.err'
 
     if use_srun:
         srun = 'srun '
